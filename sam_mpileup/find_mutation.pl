@@ -1,10 +1,10 @@
 #!/usr/bin/perl -w
 
 #*****************************************************************************
-# FileName: find_L858R_mutation.pl
+# FileName: find_mutation.pl
 # Creator: Zhang Shehuan <zhangshehuan@celloud.cn>
-# Create Time: 2017-12-13
-# Description: This code is to find reads containing L858R mutation.
+# Create Time: 2018-01-29
+# Description: This code is to find reads containing given SNV.
 # CopyRight: Copyright (c) CelLoud, All rights reserved.
 # Revision: V1.0.0
 #*****************************************************************************
@@ -13,18 +13,29 @@ use strict;
 use warnings;
 
 my $usage=<<USAGE;
-	Usage: perl $0 <sam> <out_prefix>
+	Usage: perl $0 <in_lis> <sam> <out_prefix>
 USAGE
-if (@ARGV!=2) {
+if (@ARGV!=3) {
 	die $usage;
 }
+my $in_lis=shift;
 my $sam=shift;
 my $out_prefix=shift;
 
+my %hash;
+open IN, $in_lis or die "Can't open '$in_lis': $!\n";
+while (my $line=<IN>) {
+	chomp $line;
+	my ($ref,$pos,$refbase,$altbase)=(split/\s+/,$line)[0,1,2,3];
+	$hash{$ref}{$pos}="$refbase\_$altbase";
+}
+close IN;
+
+
 open SAM, $sam or die "Can't open '$sam': $!\n";
-open OUT,">","$out_prefix.L858R_reads.name"
-	or die "Can't open '$out_prefix.L858R_reads.name': $!\n";
-my (%mark,%count);
+open OUT,">","$out_prefix.mutation_reads.name"
+	or die "Can't open '$out_prefix.mutation_reads.name': $!\n";
+my %count;
 while (my $line=<SAM>) {
 	chomp $line;
 	if ($line=~/^@/ or $line=~/^\s+$/) {
@@ -35,7 +46,7 @@ while (my $line=<SAM>) {
 	#MN00129:33:000H2C3FY:1:11101:14979:5113 99      chr7_55259351_55259784  3       24      150M    =       33      169     GATGCAGAGCTTCTTCCCATGATGATCTGTCCCTCACAGCAGGGTCTTCTCTGTTTCAGGGCATGAACTACTTGGAGGACCGTCGCTTGGTGCACCGCGACCTGGCAGCCAGGAACGTACTGGTGAAAACACCGCAGCATGTCAAGATCA  AAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAFFFFFFFFFFFFFFFFFFFFFFFAFFFAAA/AF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:150        YS:i:-65        YT:Z:CP
 	#MN00129:33:000H2C3FY:1:11101:14979:5113 147     chr7_55259351_55259784  33      24      128M4I4M8I7M    =       3       -169    CCCTCACAGCAGGGTCTTCTCTGTTTCAGGGCATGAACTACTTGGAGGACCGTCGCTTGGTGCACCGCGACCTGGCAGCCAGGAACGTACTGGTGAAAACACCGCAGCATGTCAAGATCACAGATTTTATTAGTTCTATGCCCATGGCTAT FFFFFFFFFF/FFF/FFAFFFAAF/AF=FFFFFFF=FAFFFFFFFFFFFFFA/FFFFF/F=FAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF/FAF66FFFFFFFFFFFFFFA AS:i:-65        XN:i:0  XM:i:4  XO:i:2  XG:i:12 NM:i:16 MD:Z:129G0G5C1A0        YS:i:0  YT:Z:CP
 	my ($name,$ref,$start,$cigar,$seq,$qual)=(split /\t/ , $line)[0,2,3,5,9,10];
-	if ($ref ne "chr7_55259351_55259784" or $cigar eq "*") {
+	if (!exists $hash{$ref} or $cigar eq "*") {
 		next;
 	}
 	my @info_ref=split (/[MDN=X]/,$cigar);
@@ -45,42 +56,44 @@ while (my $line=<SAM>) {
 		$len+=$num;
 	}
 	my $stop=$start+$len-1;
-	if (165>=$start and 165<=$stop) {
-		my $site=165-$start;
-		my @bp=split//,$seq;
-		my @quality=split//,$qual;
-		my @info_num=split (/[MISDN=X]/,$cigar);
-		my $cigar_cp=$cigar;
-		$cigar_cp=~s/[0-9]//g;
-		my @info_cg=split (//,$cigar_cp);
-		my $len_temp=0;
-		if (@info_num!=@info_cg) {
-			print "error: $name\t$cigar\n";
-		}
-		foreach my $i (0..$#info_cg) {
-			if ($info_cg[$i]=~/[M=X]/) {
-				$len_temp+=$info_num[$i];
-				if ($len_temp>$site) {
-					last;
-				}
-			}elsif ($info_cg[$i]=~/[IS]/) {
-				$site+=$info_num[$i];
-				$len_temp+=$info_num[$i];
-				if ($len_temp>$site) {
-					last;
-				}
-			}elsif ($info_cg[$i]=~/[DN]/) {
-				$site-=$info_num[$i];
-				if ($len_temp>$site) {
-					last;
+	foreach my $i (keys $hash{$ref}) {
+		my %mark;
+		my ($refbase,$altbase)=(split/_/,$hash{$ref}{$i})[0,1];
+		if ($i>=$start and $i<=$stop) {
+			my $site=$i-$start;
+			my @bp=split//,$seq;
+			my @quality=split//,$qual;
+			my @info_num=split (/[MISDN=X]/,$cigar);
+			my $cigar_cp=$cigar;
+			$cigar_cp=~s/[0-9]//g;
+			my @info_cg=split (//,$cigar_cp);
+			my $len_temp=0;
+			if (@info_num!=@info_cg) {
+				print "error: $name\t$cigar\n";
+			}
+			foreach my $i (0..$#info_cg) {
+				if ($info_cg[$i]=~/[M=X]/) {
+					$len_temp+=$info_num[$i];
+					if ($len_temp>$site) {
+						last;
+					}
+				}elsif ($info_cg[$i]=~/[IS]/) {
+					$site+=$info_num[$i];
+					$len_temp+=$info_num[$i];
+					if ($len_temp>$site) {
+						last;
+					}
+				}elsif ($info_cg[$i]=~/[DN]/) {
+					$site-=$info_num[$i];
+					if ($len_temp>$site) {
+						last;
+					}
 				}
 			}
-		}
-		if (!exists $mark{$name} and $bp[$site] eq "G") {
-		#if ($bp[$site] eq "G") {
-			$mark{$name}=1;
-			print "$name\t$site\t$cigar\t$quality[$site]\n";
-			print OUT "$name\n";
+			if (!exists $mark{$name} and $bp[$site] eq $altbase) {
+				$mark{$name}=1;
+				print OUT "$ref\t$i\t$refbase\t$altbase\t$name\t$site\t$quality[$site]\n";
+			}
 		}
 	}
 }

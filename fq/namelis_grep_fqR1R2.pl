@@ -1,11 +1,11 @@
 #!/usr/bin/perl
 
 #*********************************************************************************
-# FileName: namelis2fqR1R2.pl
+# FileName: namelis_grep_fqR1R2.pl
 # Creator: Zhang Shehuan <zhangshehuan@celloud.cn>
-# Create Time: 2017-6-6
-# Description: This code is to get fq records based on thn input read name list
-#              and the input parent fq files.
+# Create Time: 2018-03-14
+# Description: This code is to get fq records not containing in the input 
+#              read name list
 # CopyRight: Copyright (c) CelLoud, All rights reserved.
 # Revision: V1.0.0
 #*********************************************************************************
@@ -66,7 +66,7 @@ while (my $line=<IN>) {
 	chomp ($seq2=<IN2>);
 	chomp ($plus2=<IN2>);
 	chomp ($qual2=<IN2>);
-	if (exists $hash{$name}) {
+	if (!exists $hash{$name}) {
 		print OUT "$flag\n$seq\n$plus\n$qual\n";
 		print OUT2 "$flag2\n$seq2\n$plus2\n$qual2\n";
 	}

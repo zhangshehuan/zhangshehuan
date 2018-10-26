@@ -7,11 +7,6 @@
 # Description: This code is to merge overlap.
 # CopyRight: Copyright (c) CelLoud, All rights reserved.
 # Revision: V1.0.0
-# ModifyList:
-#    Revision: V1.1
-#    Modifier: Zhang Shehuan
-#    ModifyTime: 2018-03-16
-#    ModifyReason: refined.
 #*********************************************************************************
 
 use strict;
@@ -33,9 +28,6 @@ while (my $line=<L>) {
 	#chr1    11177065        11177219
 	chomp $line;
 	my ($chr,$start,$stop)=(split/\s+/,$line)[0,1,2];
-	if ($start>$stop) {
-		($start,$stop)=($stop,$start);
-	}
 	$hash{$chr}{$start}=$stop;
 }
 close L;
@@ -52,28 +44,26 @@ foreach my $chr (keys %hash) {
 		my $object=pop @stars;
 		foreach my $item (@stars) {
 			if ($object<$item) {
-				if ($hash{$chr}{$object}>=$item) {
-					if ($hash{$chr}{$object}<$hash{$chr}{$item}) {
-						$hash{$chr}{$object}=$hash{$chr}{$item};
-						delete $hash{$chr}{$item};
-						$mark=1;
-						last;
-					}else {
-						delete $hash{$chr}{$item};
-					}
+				if ($hash{$chr}{$object}>$item && $hash{$chr}{$object}<$hash{$chr}{$item}) {
+					$hash{$chr}{$object}=$hash{$chr}{$item};
+					delete $hash{$chr}{$item};
+					$mark=1;
+					last;
+				}elsif ($hash{$chr}{$item}<$hash{$chr}{$object}) {
+					delete $hash{$chr}{$item};
+					$mark=1;
+					last;
 				}
-			}elsif ($object>$item) {
-				if ($hash{$chr}{$item}>=$object) {
-					if ($hash{$chr}{$object}<$hash{$chr}{$item}) {
-						delete $hash{$chr}{$object};
-						$mark=1;
-						last;
-					}else {
-						$hash{$chr}{$item}=$hash{$chr}{$object};
-						delete $hash{$chr}{$object};
-						$mark=1;
-						last;
-					}
+			}else {
+				if ($hash{$chr}{$item}>$object && $hash{$chr}{$item}<$hash{$chr}{$object}) {
+					$hash{$chr}{$item}=$hash{$chr}{$object};
+					delete $hash{$chr}{$object};
+					$mark=1;
+					last;
+				}elsif ($hash{$chr}{$object}<$hash{$chr}{$item}) {
+					delete $hash{$chr}{$object};
+					$mark=1;
+					last;
 				}
 			}
 		}

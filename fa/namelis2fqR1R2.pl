@@ -25,65 +25,45 @@ my $fq1=$ARGV[1];
 my $fq2=$ARGV[2];
 my $out=$ARGV[3];
 
-my (%hash,$name,$mark,$line,$seq,$plus,$qual);
+my (%hash,$name,$mark);
 open IN, $namefile || die "Can't open $namefile: $!\n";
-while ($line=<IN>) {
-	#E00509:81:HF7YCALXX:8:1221:24677:10662  1
-	#E00509:81:HF7YCALXX:8:1110:3813:42376   0
+while (my $line=<IN>) {
+	#MN00129:11:000H23NKW:1:11102:12260:1118
+	#MN00129:11:000H23NKW:1:23110:21160:20218
 	chomp $line;
-	($name,$mark)=(split/\s+/,$line)[0,1];
-	if ($mark==0) {
-		$hash{$name}=1;
-	}
+	$name=$line;
+	$name=~s/^.{12}://;
+	$hash{$name}=1;
 }
 close IN;
-
 open OUT,">$out.R1.fq" || die "Can't write $out.R1.fq: $!\n";
+open OUT2,">$out.R2.fq" || die "Can't write $out.R2.fq: $!\n";
 open IN, $fq1 || die "Can't open $fq1: $!\n";
-while ($line=<IN>) {
-	#@E00509:81:HF7YCALXX:7:1101:20659:1836 1:N:0:CACCTG
+open IN2, $fq2 || die "Can't open $fq2: $!\n";
+my ($seq,$plus,$qual,$seq2,$plus2,$qual2);
+while (my $line=<IN>) {
+	#@MN00129:11:000H23NKW:1:11102:16153:1054 1:N:0:8
 	#TNGTTTAAGATGAGTCATCTTTGTGGGTTTTCATTTTAAATTTTCTTTCTCTAGGTGAAGCTGTACTTCACAAAAACAGTAGAGGAGCCGTCAAATCCAGAGGCTAGCAGTTCAACTTCTGTAACACCAGATGTTAGTGACAATGAACCT
 	#+
 	#A#AAAFAJJ<FJFA-FFFJJFJJJJJJ<FJJ<JFJJJ<F-<FJJAJJJJ-7F-FFJJFFJJJJJJJJJJJJJJJJF-J<FJJJJF-AFJJFJJJFJJJJJFJFFJJJ7JJJJAJAJJJJJJJJAAJFFFJAFFJJJJFFAJ7A<FJJ---
-	if ($line=~/^@/) {
+	chomp (my $line2=<IN2>);
+	if ($line=~/^@(.*)[ \/]/ and $line2=~/^@(.*)[ \/]/) {
 		chomp $line;
-		$name=(split/\s+/,$line)[0];
-		$name=~s/^@//;
+		$name=$1;
 		if (exists $hash{$name}) {
-			$seq=<IN>;
-			chomp $seq;
-			$plus=<IN>;
-			chomp $plus;
-			$qual=<IN>;
-			chomp $qual;
+			chomp ($seq=<IN>);
+			chomp ($plus=<IN>);
+			chomp ($qual=<IN>);
 			print OUT "$line\n$seq\n$plus\n$qual\n";
+			chomp ($seq2=<IN2>);
+			chomp ($plus2=<IN2>);
+			chomp ($qual2=<IN2>);
+			print OUT2 "$line2\n$seq2\n$plus2\n$qual2\n";
 		}
 	}
 }
 close IN;
+close IN2;
 close OUT;
+close OUT2;
 
-open OUT,">$out.R2.fq" || die "Can't write $out.R2.fq: $!\n";
-open IN, $fq2 || die "Can't open $fq2: $!\n";
-while ($line=<IN>) {
-	#@E00509:81:HF7YCALXX:7:1101:20659:1836 2:N:0:CACCTG
-	#TGGTGTCAGAATATCTATAATGATCAGGTTCATTGTCACTAATATCTGGTGTTACAGAAGTTGAGCTGCTAGCCTCTGGATTTGACGGCTCCTCTACTGTTTTTGTGAAGTACAGCTTCACCTAGAGAAAGAAAATTTAAAATGAAAACC
-	#+
-	#AAFFFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJAJJJJ7-<FJJJJJJFJJJFJJ7FJJJ--<FJAAJJJJJJFJJJFJJJFJJJJFJJJJJFJJJJJJJJJJJJAJ-77<A<FJFFFJJAFFJFJJJ<F<FJF<<AF-<A-AAFF7
-	if ($line=~/^@/) {
-		chomp $line;
-		$name=(split/\s+/,$line)[0];
-		$name=~s/^@//;
-		if (exists $hash{$name}) {
-			$seq=<IN>;
-			chomp $seq;
-			$plus=<IN>;
-			chomp $plus;
-			$qual=<IN>;
-			chomp $qual;
-			print OUT "$line\n$seq\n$plus\n$qual\n";
-		}
-	}
-}
-close IN;
-close OUT;
